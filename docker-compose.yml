@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    container_name: server-app
+    restart: always
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://127.0.0.1:27017/courses_db
+    ports:
+      - "3000:3000" 
+    networks:
+      - appnetwork
+
+  mongodb:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongodb-data:/data/db
+    networks:
+      - appnetwork
+  
+volumes:
+  mongodb_data:
+
+networks:
+  appnetwork:
