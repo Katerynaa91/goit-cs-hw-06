@@ -4,13 +4,14 @@ import pathlib
 import urllib.parse
 import socket
 import logging
-from threading import Thread
+from multiprocessing import Process
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
+from dotenv import load_dotenv
 from pymongo.errors import ConnectionFailure
 from pymongo.mongo_client import MongoClient
-# from dotenv import load_dotenv
-# from pymongo.server_api import ServerApi
+from pymongo.server_api import ServerApi
+
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(threadName)s: %(message)s")
 
@@ -39,7 +40,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             if filename.exists():
                 self.send_static(filename)
             else:
-                self.send_html_file('static/404.html', 404)
+                self.send_html_file('static/error.html', 404)
 
     def send_html_file(self, filename, status=200):
         self.send_response(status)
@@ -70,12 +71,9 @@ def send_data_to_socket(data):
 
 def save_data(data, db_name = "courses_db", collection = "contact_form"):
     """Функція для підлючення до БД та додавання в БД даних, отриманих через сокет"""
-    # load_dotenv()
-    # password, username = os.getenv("pswrd"), os.getenv("usrname")
-    # uri = f"mongodb+srv://turcoise:{password}@cluster5000.ixun5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster5000"
-    # client = MongoClient(uri, server_api=ServerApi("1"))
-
-    uri = "mongodb://localhost:27017/"
+    load_dotenv()
+    uri = os.getenv("DATABASE_URI")
+    client = MongoClient(uri, server_api=ServerApi("1"))
 
     data_parse = urllib.parse.unquote_plus(data.decode('utf-8'))
     data_dict = {key: value for key, value in [el.split("=") for el in data_parse.split("&")]}
@@ -118,9 +116,11 @@ def run_http_server(server_class=HTTPServer, handler_class=HttpHandler):
 
 if __name__ == "__main__":
 
-    socket_server = Thread(target=run_socket_server)
+    http_server = Process(target=run_http_server)
+    http_server.start()
+
+    socket_server = Process(target=run_socket_server)
     socket_server.start()
 
-    http_server = Thread(target=run_http_server)
-    http_server.start()
-    
+    http_server.join()
+    socket_server.join()
